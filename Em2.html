@@ -1,1 +1,1335 @@
+<!DOCTYPE html>
+<html lang="ceb">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EM EM EMERLOAN & ARAWAN - Debt & Savings Tracker (Supabase Cloud Sync)</title>
 
+    <!-- Supabase JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        // === IMONG TINUOD NGA SUPABASE DETAILS (NA-SET NA) ===
+        const SUPABASE_URL = "https://jmffhlyarehbdzyhqcvf.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable__1OuZHw4Q0ek746t_IvE8w_cN3pEqBH";
+
+        // Initialize Supabase Client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    </script>
+
+    <style>
+        :root {
+            --arawan-color: #0d9488;
+            --arawan-dark: #0f766e;
+            --emerloan-color: #6366f1;
+            --emerloan-dark: #4f46e5;
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --text-light: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .header h1 {
+            color: #38bdf8;
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+        }
+
+        /* TABS SYSTEM */
+        .tab-navigation {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 14px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #334155;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active-arawan {
+            background: var(--arawan-color) !important;
+            color: white !important;
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
+        }
+
+        .tab-btn.active-emerloan {
+            background: var(--emerloan-color) !important;
+            color: white !important;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* STATS */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .stat-card h4 {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .stat-card .value {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        /* LAYOUT */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .main-layout { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 9px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: #0f172a;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: #0f172a;
+            color: #38bdf8;
+            font-size: 0.95rem;
+            font-weight: bold;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+
+        .btn-arawan { background: var(--arawan-color); }
+        .btn-arawan:hover { background: var(--arawan-dark); }
+
+        .btn-emerloan { background: var(--emerloan-color); }
+        .btn-emerloan:hover { background: var(--emerloan-dark); }
+
+        .btn-secondary {
+            background: #334155;
+            color: #f8fafc;
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover {
+            background: #475569;
+        }
+
+        .table-container { overflow-x: auto; margin-bottom: 15px; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 9px 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th { background: #0f172a; color: var(--text-muted); }
+
+        .ledger-sheet {
+            background: #0f172a;
+            border: 2px solid var(--arawan-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .ledger-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px dashed var(--border);
+            font-size: 0.95rem;
+        }
+
+        .ledger-row span:first-child {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .ledger-row span:last-child {
+            color: #38bdf8;
+            font-weight: bold;
+        }
+
+        .emer-ledger-sheet {
+            background: #0f172a;
+            border: 2px solid var(--emerloan-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .badge {
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .badge-active { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .badge-paid { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .badge-claimed { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+        .badge-pass { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
+        .badge-sunday { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid #38bdf8; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+
+        .receipt-card {
+            background: white; color: black;
+            padding: 20px; border-radius: 8px; width: 320px;
+            font-family: monospace;
+        }
+
+        .list-modal-card {
+            background: var(--card-bg);
+            color: var(--text-light);
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 650px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        .list-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+            margin-bottom: 15px;
+        }
+
+        .list-modal-body {
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .borrower-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .borrower-item-row:hover {
+            background: rgba(56, 189, 248, 0.1);
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #receiptModal, #receiptModal * { visibility: visible; }
+            #receiptModal { position: absolute; left: 0; top: 0; background: white; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>EM EM EMERLOAN & ARAWAN</h1>
+        <p>Supabase Cloud Real-Time Payment Tracker</p>
+    </div>
+
+    <!-- MAIN TAB NAVIGATION BUTTONS -->
+    <div class="tab-navigation">
+        <button class="tab-btn active-arawan" id="tabArawanBtn" type="button">
+            ☀️ ARAWAN PHASE (Borrower Ledger Monitor)
+        </button>
+        <button class="tab-btn" id="tabEmerloanBtn" type="button">
+            🚨 EMERLOAN PHASE (Debt Payment Tracker Monitor)
+        </button>
+    </div>
+
+    <!-- ==================== ARAWAN PHASE SECTION ==================== -->
+    <div id="arawanSection" class="tab-content active">
+        <div class="stats-grid">
+            <div class="stat-card" style="border-left: 4px solid var(--arawan-color);">
+                <h4>Active Arawan Borrowers</h4>
+                <div class="value" id="arawanCount">0</div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid var(--success);">
+                <h4>Today's Arawan Collection</h4>
+                <div class="value" id="arawanToday">₱0.00</div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid var(--warning);">
+                <h4>Available Savings Fund</h4>
+                <div class="value" id="arawanSavings">₱0.00</div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #38bdf8;">
+                <h4>Total Arawan Receivables</h4>
+                <div class="value" id="arawanBalance">₱0.00</div>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <div>
+                <!-- Register Arawan -->
+                <div class="card">
+                    <h3 style="color: var(--arawan-color);">Register Arawan Account</h3>
+                    <form id="arawanRegisterForm">
+                        <div class="form-group">
+                            <label>Borrower Name</label>
+                            <input type="text" id="aName" required placeholder="Full Name">
+                        </div>
+                        <div class="form-group">
+                            <label>Address</label>
+                            <input type="text" id="aAddress" required placeholder="Complete Address">
+                        </div>
+                        <div class="form-group">
+                            <label>Principal Amount Released (₱)</label>
+                            <input type="number" id="aAmount" value="5000" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Interest Rate (%)</label>
+                            <input type="number" id="aRate" value="10" step="0.1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Term Days</label>
+                            <input type="number" id="aDays" value="26" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Required Daily Loan Payment (₱)</label>
+                            <input type="number" id="aRequiredDaily" value="211.50" step="0.01" readonly style="background:#1e293b; color:#38bdf8; font-weight:bold;">
+                        </div>
+                        <div class="form-group">
+                            <label>Actual Daily Collection (₱)</label>
+                            <input type="number" id="aCollectedDaily" value="215" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Daily Auto-Savings (₱)</label>
+                            <input type="number" id="aDailySavings" value="3.50" step="0.01" readonly style="background:#1e293b; color:#10b981; font-weight:bold;">
+                        </div>
+                        <div class="form-group">
+                            <label>Date Registered</label>
+                            <input type="date" id="aRegDate" required>
+                        </div>
+                        <button type="submit" class="btn btn-arawan">Register Arawan Loan</button>
+                    </form>
+                </div>
+
+                <!-- Record Arawan Payment / Pass -->
+                <div class="card">
+                    <h3 style="color: var(--arawan-color);">Record Daily Collection / Pass</h3>
+                    <form id="arawanPayForm">
+                        <div class="form-group">
+                            <label>Search Borrower Name (I-search dire ang Pangalan):</label>
+                            <input type="text" id="aSearchInput" list="arawanBorrowersList" placeholder="🔍 I-type ang Pangalan sa Borrower..." required autocomplete="off" style="border: 2px solid var(--arawan-color); font-weight: bold; color: #38bdf8;">
+                            <datalist id="arawanBorrowersList"></datalist>
+                        </div>
+                        <div class="form-group">
+                            <label>Entry Type</label>
+                            <select id="aEntryType" required style="border: 1px solid var(--border); font-weight: bold;">
+                                <option value="PAYMENT">💵 Daily Collection (Paid Today)</option>
+                                <option value="PASS">❌ Mark as PASS (No Payment Today)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Collection Date</label>
+                            <input type="date" id="aPayDate" required>
+                        </div>
+                        <div class="form-group" id="payAmountGroup">
+                            <label>Daily Payment Collected (₱)</label>
+                            <input type="number" id="aPayAmount" value="215" step="0.01">
+                        </div>
+                        <div class="form-group" id="payPenaltyGroup">
+                            <label>Penalty (₱ if any)</label>
+                            <input type="number" id="aPayPenalty" value="0" step="0.01">
+                        </div>
+                        <button type="submit" class="btn btn-arawan" id="btnSubmitEntry">Submit Entry</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Borrower Ledger Monitor & Sheet -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                    <h3 style="color: var(--arawan-color); border: none; margin: 0; padding: 0;">DEBT PAYMENT TRACKER (ARAWAN)</h3>
+                    <button type="button" class="btn btn-secondary" onclick="openBorrowersModal('ARAWAN')" style="width: auto; padding: 6px 12px; font-size: 0.85rem;">
+                        📋 View List of Borrowers
+                    </button>
+                </div>
+                
+                <div class="form-group">
+                    <label>Pangitaa ang Borrower (Live Search):</label>
+                    <input type="text" id="aSearch" class="search-box" placeholder="🔍 I-type ang pangalan dire aron mogawas dayon ang ledger..." style="margin-bottom:0;">
+                </div>
+
+                <div id="arawanLedgerSheetContainer">
+                    <p style="text-align: center; color: var(--text-muted); padding: 25px;">I-type ang pangalan sa ibabaw o i-click ang "View List of Borrowers" aron makita ang Arawan Ledger Monitor.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==================== EMERLOAN PHASE SECTION ==================== -->
+    <div id="emerloanSection" class="tab-content">
+        <div class="stats-grid">
+            <div class="stat-card" style="border-left: 4px solid var(--emerloan-color);">
+                <h4>Active Emerloan Borrowers</h4>
+                <div class="value" id="emerCount">0</div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid var(--success);">
+                <h4>Today's Emerloan Collection</h4>
+                <div class="value" id="emerToday">₱0.00</div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #38bdf8;">
+                <h4>Total Emerloan Receivables</h4>
+                <div class="value" id="emerBalance">₱0.00</div>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <div>
+                <!-- Register Emerloan -->
+                <div class="card">
+                    <h3 style="color: var(--emerloan-color);">Register Emergency Loan</h3>
+                    <form id="emerRegisterForm">
+                        <div class="form-group">
+                            <label>Borrower Name</label>
+                            <input type="text" id="eName" required placeholder="Full Name">
+                        </div>
+                        <div class="form-group">
+                            <label>Address</label>
+                            <input type="text" id="eAddress" required placeholder="Complete Address">
+                        </div>
+                        <div class="form-group">
+                            <label>Emergency Loan Amount (₱)</label>
+                            <input type="number" id="eAmount" value="5000" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Term (e.g. 10 Days)</label>
+                            <input type="text" id="eTerm" value="10 Days" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Disbursement Date</label>
+                            <input type="date" id="eDisburseDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>First Due Date (Maturity)</label>
+                            <input type="date" id="eDueDate" required>
+                        </div>
+                        <button type="submit" class="btn btn-emerloan">Register Emerloan</button>
+                    </form>
+                </div>
+
+                <!-- Record Emerloan Payment -->
+                <div class="card">
+                    <h3 style="color: var(--emerloan-color);">Record Loan Payment</h3>
+                    <form id="emerPayForm">
+                        <div class="form-group">
+                            <label>Search Borrower Name (I-search dire ang Pangalan):</label>
+                            <input type="text" id="eSearchInput" list="emerloanBorrowersList" placeholder="🔍 I-type ang Pangalan sa Borrower..." required autocomplete="off" style="border: 2px solid var(--emerloan-color); font-weight: bold; color: #38bdf8;">
+                            <datalist id="emerloanBorrowersList"></datalist>
+                        </div>
+                        <div class="form-group">
+                            <label>Payment Date</label>
+                            <input type="date" id="ePayDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Principal Payment (₱)</label>
+                            <input type="number" id="ePayPrincipal" step="0.01" value="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Interest Payment (₱)</label>
+                            <input type="number" id="ePayInterest" step="0.01" value="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Penalty Payment (₱)</label>
+                            <input type="number" id="ePayPenalty" step="0.01" value="0" required>
+                        </div>
+                        <button type="submit" class="btn btn-emerloan">Submit Emerloan Payment</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Borrower Ledger Monitor & Sheet -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                    <h3 style="color: var(--emerloan-color); border: none; margin: 0; padding: 0;">DEBT PAYMENT TRACKER MONITOR (EMERLOAN)</h3>
+                    <button type="button" class="btn btn-secondary" onclick="openBorrowersModal('EMERLOAN')" style="width: auto; padding: 6px 12px; font-size: 0.85rem;">
+                        📋 View List of Borrowers
+                    </button>
+                </div>
+                
+                <div class="form-group">
+                    <label>Pangitaa ang Borrower (Live Search):</label>
+                    <input type="text" id="eSearch" class="search-box" placeholder="🔍 I-type ang pangalan dire aron mogawas dayon ang monitor..." style="margin-bottom:0;">
+                </div>
+
+                <div id="borrowerLedgerSheetContainer">
+                    <p style="text-align: center; color: var(--text-muted); padding: 25px;">I-type ang pangalan sa ibabaw o i-click ang "View List of Borrowers" aron makita ang Debt Payment Tracker Monitor.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- PRINTABLE RECEIPT MODAL -->
+    <div class="modal" id="receiptModal">
+        <div class="receipt-card">
+            <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 10px;">
+                <strong id="rPhaseTitle" style="font-size: 1rem;"></strong><br>
+                Official Payment Receipt
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom: 5px;"><span>Date:</span> <span id="rDate"></span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom: 5px;"><span>Name:</span> <span id="rName"></span></div>
+            <hr style="border:none; border-top: 1px dashed #000; margin: 8px 0;">
+            <div style="display:flex; justify-content:space-between; margin-bottom: 5px;"><span>Principal/Loan Pay:</span> <span id="rPrin"></span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom: 5px;"><span>Interest Pay:</span> <span id="rInt"></span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom: 5px;"><span>Penalty Pay:</span> <span id="rPen"></span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom: 5px;"><span>Auto-Savings Added:</span> <span id="rSav" style="color:#10b981; font-weight:bold;">₱0.00</span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom: 5px; border-top:1px dashed #000; padding-top:4px;"><span><strong>Total Paid:</strong></span> <strong><span id="rTotal"></span></strong></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom: 5px;"><span>Remaining Bal:</span> <span id="rBal"></span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom: 5px; color:#4f46e5; font-weight:bold;" id="nextDueContainer"><span>Next Due Date:</span> <span id="rNextDue">-</span></div>
+            <div style="text-align:center; font-size: 0.75rem; margin-top: 15px; border-top: 1px dashed #000; padding-top: 5px;">
+                Daghan Salamat!
+            </div>
+            <div class="no-print" style="margin-top: 15px; display: flex; gap: 8px;">
+                <button onclick="window.print()" style="flex:1; padding: 6px; background: #10b981; color: white; border:none; border-radius: 4px; cursor:pointer;">Print</button>
+                <button onclick="document.getElementById('receiptModal').style.display='none'" style="flex:1; padding: 6px; background: #ef4444; color: white; border:none; border-radius: 4px; cursor:pointer;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIST OF BORROWERS MODAL -->
+    <div class="modal" id="borrowersListModal">
+        <div class="list-modal-card">
+            <div class="list-modal-header">
+                <h3 id="modalListTitle" style="color: #38bdf8; font-size: 1.15rem; border:none; margin:0;">List of Borrowers</h3>
+                <button onclick="closeBorrowersModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:1.5rem; cursor:pointer; font-weight:bold;">&times;</button>
+            </div>
+            <div class="list-modal-body" id="modalListContainer"></div>
+            <div style="margin-top: 15px; text-align: right;">
+                <button onclick="closeBorrowersModal()" class="btn btn-secondary" style="width: auto; padding: 6px 16px;">Close</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        let records = [];
+
+        async function fetchRecords() {
+            const { data, error } = await supabase.from('loans').select('*');
+            if (error) {
+                console.error("Error fetching data:", error);
+            } else {
+                records = data || [];
+                render();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            document.getElementById('aPayDate').value = todayStr;
+            document.getElementById('aRegDate').value = todayStr;
+            document.getElementById('ePayDate').value = todayStr;
+            document.getElementById('eDisburseDate').value = todayStr;
+
+            fetchRecords();
+
+            supabase.channel('custom-all-channel')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'loans' }, () => {
+                    fetchRecords();
+                })
+                .subscribe();
+        });
+
+        function isSunday(dateStr) {
+            if(!dateStr) return false;
+            const d = new Date(dateStr);
+            return d.getDay() === 0;
+        }
+
+        function addDaysToDate(dateStr, daysToAdd) {
+            if(!dateStr) return '';
+            const d = new Date(dateStr);
+            d.setDate(d.getDate() + daysToAdd);
+            return d.toISOString().split('T')[0];
+        }
+
+        document.getElementById('aSearchInput').addEventListener('input', function() {
+            const val = this.value.trim().toLowerCase();
+            const found = records.find(r => r.type === 'ARAWAN' && r.status === 'ACTIVE' && r.name.toLowerCase() === val);
+            if(found) {
+                document.getElementById('aPayAmount').value = found.collectedDaily || 215;
+            }
+        });
+
+        document.getElementById('aEntryType').addEventListener('change', function() {
+            const isPass = this.value === 'PASS';
+            document.getElementById('payAmountGroup').style.display = isPass ? 'none' : 'block';
+            document.getElementById('payPenaltyGroup').style.display = isPass ? 'none' : 'block';
+            document.getElementById('btnSubmitEntry').textContent = isPass ? 'Submit PASS Mark' : 'Submit Collection';
+        });
+
+        const tabArawanBtn = document.getElementById('tabArawanBtn');
+        const tabEmerloanBtn = document.getElementById('tabEmerloanBtn');
+        const arawanSection = document.getElementById('arawanSection');
+        const emerloanSection = document.getElementById('emerloanSection');
+
+        tabArawanBtn.addEventListener('click', function() {
+            arawanSection.classList.add('active');
+            emerloanSection.classList.remove('active');
+            tabArawanBtn.classList.add('active-arawan');
+            tabEmerloanBtn.classList.remove('active-emerloan');
+            render();
+        });
+
+        tabEmerloanBtn.addEventListener('click', function() {
+            emerloanSection.classList.add('active');
+            arawanSection.classList.remove('active');
+            tabEmerloanBtn.classList.add('active-emerloan');
+            tabArawanBtn.classList.remove('active-arawan');
+            render();
+        });
+
+        document.getElementById('aSearch').addEventListener('input', render);
+        document.getElementById('eSearch').addEventListener('input', render);
+
+        function openBorrowersModal(type) {
+            const modal = document.getElementById('borrowersListModal');
+            const container = document.getElementById('modalListContainer');
+            const title = document.getElementById('modalListTitle');
+
+            title.textContent = type === 'ARAWAN' ? '📋 Arawan Borrowers List' : '📋 Emerloan Borrowers List';
+            
+            const filteredRecords = records.filter(r => r.type === type);
+
+            if (filteredRecords.length === 0) {
+                container.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 20px;">Wala pa'y rehistrado nga borrower sa ${type}.</p>`;
+            } else {
+                let html = '';
+                filteredRecords.forEach(item => {
+                    const statusBadge = item.status === 'ACTIVE' 
+                        ? `<span class="badge badge-active">ACTIVE</span>` 
+                        : `<span class="badge badge-paid">PAID</span>`;
+
+                    html += `
+                        <div class="borrower-item-row" onclick="selectBorrowerFromModal('${type}', '${item.name.replace(/'/g, "\\'")}')">
+                            <div>
+                                <strong style="color: #38bdf8; font-size: 1rem;">${item.name}</strong>
+                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top:2px;">Amount: ₱${item.principal.toFixed(2)} | Date: ${item.regDate || item.disburseDate}</div>
+                            </div>
+                            <div>
+                                ${statusBadge}
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeBorrowersModal() {
+            document.getElementById('borrowersListModal').style.display = 'none';
+        }
+
+        function selectBorrowerFromModal(type, name) {
+            if (type === 'ARAWAN') {
+                document.getElementById('aSearch').value = name;
+            } else {
+                document.getElementById('eSearch').value = name;
+            }
+            closeBorrowersModal();
+            render();
+        }
+
+        document.getElementById('aAmount').addEventListener('input', updateArawanCalculation);
+        document.getElementById('aRate').addEventListener('input', updateArawanCalculation);
+        document.getElementById('aDays').addEventListener('input', updateArawanCalculation);
+        document.getElementById('aCollectedDaily').addEventListener('input', updateArawanCalculation);
+
+        function updateArawanCalculation() {
+            const principal = parseFloat(document.getElementById('aAmount').value) || 0;
+            const rate = parseFloat(document.getElementById('aRate').value) || 0;
+            const days = parseInt(document.getElementById('aDays').value) || 1;
+            const collectedDaily = parseFloat(document.getElementById('aCollectedDaily').value) || 0;
+
+            const totalLoanWithInterest = principal + (principal * (rate / 100));
+            const requiredDaily = totalLoanWithInterest / days;
+            const dailySavings = Math.max(0, collectedDaily - requiredDaily);
+
+            document.getElementById('aRequiredDaily').value = requiredDaily.toFixed(2);
+            document.getElementById('aDailySavings').value = dailySavings.toFixed(2);
+        }
+
+        updateArawanCalculation();
+
+        document.getElementById('arawanRegisterForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const principal = parseFloat(document.getElementById('aAmount').value);
+            const rate = parseFloat(document.getElementById('aRate').value);
+            const days = parseInt(document.getElementById('aDays').value) || 26;
+            const collectedDaily = parseFloat(document.getElementById('aCollectedDaily').value);
+            const requiredDaily = parseFloat(document.getElementById('aRequiredDaily').value);
+            const dailySavings = parseFloat(document.getElementById('aDailySavings').value);
+
+            const totalLoanPayable = requiredDaily * days;
+            const nameVal = document.getElementById('aName').value.trim();
+
+            const newLoan = {
+                type: 'ARAWAN',
+                name: nameVal,
+                address: document.getElementById('aAddress').value.trim(),
+                principal: principal,
+                rate: rate,
+                days: days,
+                requiredDaily: requiredDaily,
+                collectedDaily: collectedDaily,
+                dailySavings: dailySavings,
+                term: `${days} Days`,
+                totalDebt: totalLoanPayable,
+                accumulatedSavings: 0,
+                regDate: document.getElementById('aRegDate').value,
+                savingsClaimed: false,
+                payments: [],
+                status: 'ACTIVE'
+            };
+
+            const { error } = await supabase.from('loans').insert([newLoan]);
+            if (error) {
+                alert('Error saving to Supabase: ' + error.message);
+            } else {
+                document.getElementById('aSearch').value = newLoan.name;
+                this.reset();
+                document.getElementById('aAmount').value = 5000;
+                document.getElementById('aRate').value = 10;
+                document.getElementById('aDays').value = 26;
+                document.getElementById('aCollectedDaily').value = 215;
+                const todayStr = new Date().toISOString().split('T')[0];
+                document.getElementById('aRegDate').value = todayStr;
+                updateArawanCalculation();
+                alert('Arawan account registered successfully to Supabase!');
+            }
+        });
+
+        document.getElementById('emerRegisterForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const principal = parseFloat(document.getElementById('eAmount').value);
+            const fixedInterest = principal * 0.10;
+            const totalDebt = principal + fixedInterest;
+            const nameVal = document.getElementById('eName').value.trim();
+
+            const newLoan = {
+                type: 'EMERLOAN',
+                name: nameVal,
+                address: document.getElementById('eAddress').value.trim(),
+                principal: principal,
+                term: document.getElementById('eTerm').value.trim(),
+                fixedInterest: fixedInterest,
+                totalDebt: totalDebt,
+                disburseDate: document.getElementById('eDisburseDate').value,
+                dueDate: document.getElementById('eDueDate').value,
+                payments: [],
+                status: 'ACTIVE'
+            };
+
+            const { error } = await supabase.from('loans').insert([newLoan]);
+            if (error) {
+                alert('Error saving to Supabase: ' + error.message);
+            } else {
+                document.getElementById('eSearch').value = newLoan.name;
+                this.reset();
+                const todayStr = new Date().toISOString().split('T')[0];
+                document.getElementById('eDisburseDate').value = todayStr;
+                alert('Emerloan account registered successfully to Supabase!');
+            }
+        });
+
+        document.getElementById('arawanPayForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const searchedName = document.getElementById('aSearchInput').value.trim().toLowerCase();
+            const entryType = document.getElementById('aEntryType').value;
+            const date = document.getElementById('aPayDate').value;
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            const item = records.find(r => r.type === 'ARAWAN' && r.status === 'ACTIVE' && r.name.toLowerCase() === searchedName);
+            if (!item) {
+                alert('Dili makita ang pangalan sa Arawan Borrower! Palihog i-check ang spelling.');
+                return;
+            }
+
+            const entryIsSunday = isSunday(date);
+            const currentPassCount = (item.payments || []).filter(p => p.isPass && !isSunday(p.date)).length;
+
+            let updatedPayments = [...(item.payments || [])];
+            let newSavings = item.accumulatedSavings || 0;
+            let newStatus = item.status;
+
+            if (entryType === 'PASS') {
+                if (entryIsSunday) {
+                    updatedPayments.push({
+                        date: date,
+                        isPass: true,
+                        isSundayPass: true,
+                        amountCollected: 0,
+                        loanPaymentPortion: 0,
+                        savingsPortion: 0,
+                        penalty: 0
+                    });
+                } else {
+                    if (currentPassCount >= 5) {
+                        alert('Sobra na sa 5 ka adlaw nga gi-PASS! Dili na pwede.');
+                        return;
+                    }
+                    updatedPayments.push({
+                        date: date,
+                        isPass: true,
+                        isSundayPass: false,
+                        amountCollected: 0,
+                        loanPaymentPortion: 0,
+                        savingsPortion: 0,
+                        penalty: 0
+                    });
+                }
+            } else {
+                const collectedAmt = parseFloat(document.getElementById('aPayAmount').value) || 0;
+                let penalty = parseFloat(document.getElementById('aPayPenalty').value) || 0;
+
+                const reqDaily = item.requiredDaily || (item.totalDebt / item.days);
+                const loanPaymentPortion = Math.min(collectedAmt, reqDaily);
+                const savingsPortion = Math.max(0, collectedAmt - reqDaily);
+
+                newSavings += savingsPortion;
+
+                updatedPayments.push({
+                    date: date,
+                    isPass: false,
+                    amountCollected: collectedAmt,
+                    loanPaymentPortion: loanPaymentPortion,
+                    savingsPortion: savingsPortion,
+                    penalty: penalty
+                });
+
+                const totalLoanPaid = updatedPayments.reduce((sum, p) => sum + (p.loanPaymentPortion || 0), 0);
+                if (totalLoanPaid >= item.totalDebt) {
+                    newStatus = 'PAID';
+                }
+            }
+
+            const { error } = await supabase.from('loans').update({
+                payments: updatedPayments,
+                accumulatedSavings: newSavings,
+                status: newStatus
+            }).eq('id', item.id);
+
+            if (error) {
+                alert('Error updating payment: ' + error.message);
+            } else {
+                if (entryType !== 'PASS') {
+                    const totalLoanPaid = updatedPayments.reduce((sum, p) => sum + (p.loanPaymentPortion || 0), 0);
+                    const lastPay = updatedPayments[updatedPayments.length - 1];
+                    showReceipt('ARAWAN', item.name, date, lastPay.loanPaymentPortion, 0, lastPay.penalty, Math.max(0, item.totalDebt - totalLoanPaid), '-', lastPay.savingsPortion);
+                } else {
+                    alert('Pass recorded successfully!');
+                }
+            }
+
+            this.reset();
+            document.getElementById('aPayAmount').value = 215;
+            document.getElementById('aPayDate').value = todayStr;
+            document.getElementById('aPayPenalty').value = 0;
+            document.getElementById('aEntryType').value = 'PAYMENT';
+            document.getElementById('payAmountGroup').style.display = 'block';
+            document.getElementById('payPenaltyGroup').style.display = 'block';
+            document.getElementById('btnSubmitEntry').textContent = 'Submit Entry';
+        });
+
+        document.getElementById('emerPayForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const searchedName = document.getElementById('eSearchInput').value.trim().toLowerCase();
+            const date = document.getElementById('ePayDate').value;
+            const prinPay = parseFloat(document.getElementById('ePayPrincipal').value) || 0;
+            const intPay = parseFloat(document.getElementById('ePayInterest').value) || 0;
+            let penPay = parseFloat(document.getElementById('ePayPenalty').value) || 0;
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            const item = records.find(r => r.type === 'EMERLOAN' && r.status === 'ACTIVE' && r.name.toLowerCase() === searchedName);
+            if (!item) {
+                alert('Dili makita ang pangalan sa Emerloan Borrower! Palihog i-check ang spelling.');
+                return;
+            }
+
+            const totalPay = prinPay + intPay + penPay;
+            if (totalPay <= 0) {
+                alert('Palihog butangi og kantidad ang payment.');
+                return;
+            }
+
+            const currentDueDate = item.dueDate;
+            let nextDueDate = currentDueDate;
+            const existingPayments = item.payments || [];
+            const totalPrinPaid = existingPayments.reduce((sum, p) => sum + (p.principalPaid || 0), 0) + prinPay;
+
+            if (intPay > 0 || penPay > 0) {
+                if (totalPrinPaid < item.principal) {
+                    nextDueDate = addDaysToDate(currentDueDate, 10);
+                }
+            }
+
+            let updatedPayments = [...existingPayments, {
+                dueDateRecord: currentDueDate,
+                nextDueDateRecord: nextDueDate,
+                date: date,
+                principalPaid: prinPay,
+                interestPaid: intPay,
+                penaltyPaid: penPay,
+                totalPaid: totalPay
+            }];
+
+            let newStatus = totalPrinPaid >= item.principal ? 'PAID' : item.status;
+
+            const { error } = await supabase.from('loans').update({
+                payments: updatedPayments,
+                dueDate: nextDueDate,
+                status: newStatus
+            }).eq('id', item.id);
+
+            if (error) {
+                alert('Error updating payment: ' + error.message);
+            } else {
+                showReceipt('EMERLOAN', item.name, date, prinPay, intPay, penPay, Math.max(0, item.principal - totalPrinPaid), nextDueDate, 0);
+            }
+
+            this.reset();
+            document.getElementById('eSearchInput').value = '';
+            document.getElementById('ePayDate').value = todayStr;
+            document.getElementById('ePayPrincipal').value = 0;
+            document.getElementById('ePayInterest').value = 0;
+            document.getElementById('ePayPenalty').value = 0;
+        });
+
+        async function withdrawSavings(id) {
+            const item = records.find(r => r.id === id);
+            if (!item) return;
+
+            const currentSav = item.accumulatedSavings || 0;
+            if (confirm(`I-withdraw ang Savings nga ₱${currentSav.toFixed(2)} alang kang ${item.name}?`)) {
+                const { error } = await supabase.from('loans').update({ savingsClaimed: true }).eq('id', id);
+                if (error) alert('Error: ' + error.message);
+                else alert('Savings successfully withdrawn!');
+            }
+        }
+
+        async function deleteRecord(id) {
+            if (confirm('Sigurado ka nga idelete kini nga account?')) {
+                const { error } = await supabase.from('loans').delete().eq('id', id);
+                if (error) alert('Error: ' + error.message);
+                else alert('Record deleted successfully!');
+            }
+        }
+
+        function showReceipt(phase, name, date, prin, int, pen, bal, nextDue, savingsAdded = 0) {
+            document.getElementById('rPhaseTitle').textContent = `EM EM ${phase}`;
+            document.getElementById('rName').textContent = name;
+            document.getElementById('rDate').textContent = date;
+            document.getElementById('rPrin').textContent = '₱' + prin.toFixed(2);
+            document.getElementById('rInt').textContent = '₱' + int.toFixed(2);
+            document.getElementById('rPen').textContent = '₱' + pen.toFixed(2);
+            document.getElementById('rSav').textContent = '₱' + savingsAdded.toFixed(2);
+            document.getElementById('rTotal').textContent = '₱' + (prin + int + pen + savingsAdded).toFixed(2);
+            document.getElementById('rBal').textContent = '₱' + bal.toFixed(2);
+            document.getElementById('rNextDue').textContent = nextDue;
+            
+            const nextDueElem = document.getElementById('nextDueContainer');
+            if(nextDue === '-') {
+                nextDueElem.style.display = 'none';
+            } else {
+                nextDueElem.style.display = 'flex';
+            }
+
+            document.getElementById('receiptModal').style.display = 'flex';
+        }
+
+        function render() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const arawanDatalist = document.getElementById('arawanBorrowersList');
+            const aSearchVal = document.getElementById('aSearch').value.toLowerCase().trim();
+            const arawanContainer = document.getElementById('arawanLedgerSheetContainer');
+
+            arawanDatalist.innerHTML = '';
+            let aCount = 0, aToday = 0, aBalTotal = 0, aTotalSavings = 0;
+            let matchedArawanLoan = null;
+
+            const emerloanDatalist = document.getElementById('emerloanBorrowersList');
+            const eSearchVal = document.getElementById('eSearch').value.toLowerCase().trim();
+            const emerContainer = document.getElementById('borrowerLedgerSheetContainer');
+
+            emerloanDatalist.innerHTML = '';
+            let eCount = 0, eToday = 0, eBalTotal = 0;
+            let matchedEmerLoan = null;
+
+            records.forEach(item => {
+                const todayPay = item.payments ? item.payments.filter(p => p.date === todayStr).reduce((sum, p) => sum + (p.amountCollected || p.totalPaid || 0), 0) : 0;
+
+                if (item.type === 'ARAWAN') {
+                    const totalLoanPaid = item.payments ? item.payments.reduce((sum, p) => sum + (p.loanPaymentPortion || 0), 0) : 0;
+                    const balance = Math.max(0, item.totalDebt - totalLoanPaid);
+
+                    const curSavings = item.accumulatedSavings || 0;
+                    if (!item.savingsClaimed) {
+                        aTotalSavings += curSavings;
+                    }
+
+                    if (item.status === 'ACTIVE') {
+                        aCount++;
+                        arawanDatalist.innerHTML += `<option value="${item.name}">`;
+                    }
+                    aToday += todayPay;
+                    aBalTotal += balance;
+
+                    if (aSearchVal !== '' && item.name.toLowerCase().includes(aSearchVal)) {
+                        matchedArawanLoan = item;
+                    }
+                } 
+                else if (item.type === 'EMERLOAN') {
+                    if (item.status === 'ACTIVE') {
+                        eCount++;
+                        emerloanDatalist.innerHTML += `<option value="${item.name}">`;
+                    }
+
+                    const totalPrinPaid = item.payments ? item.payments.reduce((s, p) => s + p.principalPaid, 0) : 0;
+                    const remainingPrinBal = Math.max(0, item.principal - totalPrinPaid);
+                    eBalTotal += remainingPrinBal;
+                    eToday += todayPay;
+
+                    if (eSearchVal !== '' && item.name.toLowerCase().includes(eSearchVal)) {
+                        matchedEmerLoan = item;
+                    }
+                }
+            });
+
+            let activeArawanLoan = matchedArawanLoan;
+            if (activeArawanLoan) {
+                let passbookRows = '';
+                let collectionRows = '';
+                const passList = activeArawanLoan.payments ? activeArawanLoan.payments.filter(p => p.isPass) : [];
+                let regularPassCount = 0;
+
+                for (let i = 1; i <= 5; i++) {
+                    const passRecord = passList[i - 1];
+                    let pDate = '-';
+                    let passCol = '<span style="color: var(--text-muted);">Unused Slot</span>';
+
+                    if (passRecord) {
+                        pDate = passRecord.date;
+                        if (isSunday(pDate)) {
+                            passCol = '<span class="badge badge-sunday">SUN PASS</span>';
+                        } else {
+                            passCol = '<span class="badge badge-pass">PASS</span>';
+                            regularPassCount++;
+                        }
+                    }
+
+                    passbookRows += `
+                        <tr>
+                            <td>Pass Slot ${i}</td>
+                            <td>${pDate}</td>
+                            <td>${passCol}</td>
+                            <td>${pDate !== '-' ? activeArawanLoan.name : '-'}</td>
+                        </tr>
+                    `;
+                }
+
+                let totalSavAcc = activeArawanLoan.accumulatedSavings || 0;
+                const paymentOnlyList = activeArawanLoan.payments ? activeArawanLoan.payments.filter(p => !p.isPass) : [];
+                
+                paymentOnlyList.forEach((p, index) => {
+                    const colAmt = p.amountCollected || p.amount || 0;
+                    const savPortion = p.savingsPortion || 0;
+                    collectionRows += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${p.date}</td>
+                            <td>₱${colAmt.toFixed(2)}</td>
+                            <td style="color:#10b981;">+₱${savPortion.toFixed(2)}</td>
+                            <td>₱${(p.penalty || 0).toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+
+                if (paymentOnlyList.length === 0) {
+                    collectionRows = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Wala pa'y natala nga payment collection.</td></tr>`;
+                }
+
+                let savingsAction = `₱${totalSavAcc.toFixed(2)}`;
+                if(activeArawanLoan.status === 'PAID') {
+                    if(!activeArawanLoan.savingsClaimed) {
+                        savingsAction += ` <button onclick="withdrawSavings('${activeArawanLoan.id}')" style="background:#f59e0b; color:black; border:none; padding:2px 6px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:5px;">Withdraw</button>`;
+                    } else {
+                        savingsAction = `<span class="badge badge-claimed">Withdrawn</span>`;
+                    }
+                }
+
+                arawanContainer.innerHTML = `
+                    <div class="ledger-sheet">
+                        <div style="text-align: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                            <strong style="color: #38bdf8; font-size: 1.15rem; letter-spacing: 1px;">DEBT PAYMENT TRACKER (ARAWAN)</strong>
+                        </div>
+                        <div class="ledger-row"><span>Name:</span> <span>${activeArawanLoan.name}</span></div>
+                        <div class="ledger-row"><span>Address:</span> <span>${activeArawanLoan.address}</span></div>
+                        <div class="ledger-row"><span>Date:</span> <span>${activeArawanLoan.regDate}</span></div>
+                        <div class="ledger-row"><span>Term:</span> <span>${activeArawanLoan.term}</span></div>
+                        <div class="ledger-row"><span>Amount:</span> <span>₱${activeArawanLoan.principal.toFixed(2)}</span></div>
+                        <div class="ledger-row"><span>Required Loan Daily Pay:</span> <span style="color: #38bdf8;">₱${(activeArawanLoan.requiredDaily || 211.50).toFixed(2)}</span></div>
+                        <div class="ledger-row"><span>Daily Collection Target:</span> <span style="color: #2dd4bf;">₱${(activeArawanLoan.collectedDaily || 215).toFixed(2)}</span></div>
+                        <div class="ledger-row"><span>Regular Pass Used:</span> <span style="color: ${regularPassCount >= 5 ? '#f87171' : '#fbbf24'}; font-weight:bold;">${regularPassCount} / 5 Days Max</span></div>
+                        <div class="ledger-row" style="background: rgba(13, 148, 136, 0.15); padding: 5px 8px; border-top: 1px solid var(--arawan-color); border-bottom: 1px solid var(--arawan-color);">
+                            <span>Total Accumulated Savings:</span> <span style="color: #10b981; font-size: 1.05rem;">${savingsAction}</span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <h4 style="color: #38bdf8; font-size: 0.9rem;">Passbook Schedule (5 Days Pass)</h4>
+                        <button onclick="deleteRecord('${activeArawanLoan.id}')" style="background:#ef4444; color:white; border:none; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">Delete Account</button>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>No.</th>
+                                    <th>DATE</th>
+                                    <th>PASS</th>
+                                    <th>SIGNATURE</th>
+                                </tr>
+                            </thead>
+                            <tbody>${passbookRows}</tbody>
+                        </table>
+                    </div>
+
+                    <h4 style="color: #38bdf8; font-size: 0.9rem; margin-top: 15px; margin-bottom: 8px;">Daily Collection & Auto-Savings Breakdown (Payments Only)</h4>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>No.</th>
+                                    <th>Date</th>
+                                    <th>Collection</th>
+                                    <th>Auto-Savings</th>
+                                    <th>Penalty</th>
+                                </tr>
+                            </thead>
+                            <tbody>${collectionRows}</tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                arawanContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 25px;">I-type ang pangalan sa search box sa ibabaw o i-click ang "View List of Borrowers" aron makita ang Arawan Ledger Monitor.</p>`;
+            }
+
+            let activeEmerLoan = matchedEmerLoan;
+            if (activeEmerLoan) {
+                let totalPrinPaid = 0;
+                let tableRows = '';
+
+                if(activeEmerLoan.payments) {
+                    activeEmerLoan.payments.forEach(p => {
+                        totalPrinPaid += p.principalPaid;
+                        const remBal = Math.max(0, activeEmerLoan.principal - totalPrinPaid);
+                        const recordDueDate = p.dueDateRecord || activeEmerLoan.dueDate;
+
+                        tableRows += `
+                            <tr>
+                                <td style="color: #38bdf8; font-weight: bold;">${recordDueDate}</td>
+                                <td>${p.date}</td>
+                                <td>₱${remBal.toFixed(2)}</td>
+                                <td>₱${p.principalPaid.toFixed(2)}</td>
+                                <td>₱${p.interestPaid.toFixed(2)}</td>
+                                <td>₱${p.penaltyPaid.toFixed(2)}</td>
+                                <td><strong>₱${p.totalPaid.toFixed(2)}</strong></td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                if (!activeEmerLoan.payments || activeEmerLoan.payments.length === 0) {
+                    tableRows = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Wala pa'y natala nga payment.</td></tr>`;
+                }
+
+                emerContainer.innerHTML = `
+                    <div class="emer-ledger-sheet">
+                        <div style="text-align: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                            <strong style="color: #38bdf8; font-size: 1.15rem; letter-spacing: 1px;">DEBT PAYMENT TRACKER MONITOR</strong>
+                        </div>
+                        <div class="ledger-row"><span>Name:</span> <span>${activeEmerLoan.name}</span></div>
+                        <div class="ledger-row"><span>Address:</span> <span>${activeEmerLoan.address}</span></div>
+                        <div class="ledger-row"><span>Date:</span> <span>${activeEmerLoan.disburseDate}</span></div>
+                        <div class="ledger-row"><span>Term:</span> <span>${activeEmerLoan.term}</span></div>
+                        <div class="ledger-row"><span>Principal Amount:</span> <span>₱${activeEmerLoan.principal.toFixed(2)}</span></div>
+                        <div class="ledger-row"><span>Fixed Interest 10%:</span> <span>₱${activeEmerLoan.fixedInterest.toFixed(2)}</span></div>
+                        <div class="ledger-row" style="background: rgba(99, 102, 241, 0.15); padding: 6px 8px; border-top: 1px solid var(--emerloan-color); border-bottom: 1px solid var(--emerloan-color);">
+                            <span>TOTAL AMOUNT DUE:</span> <span style="color: #10b981; font-size: 1.05rem;">₱${activeEmerLoan.totalDebt.toFixed(2)}</span>
+                        </div>
+                        <div class="ledger-row"><span>Disbursement Date:</span> <span>${activeEmerLoan.disburseDate}</span></div>
+                        <div class="ledger-row" style="background: rgba(56, 189, 248, 0.1); padding: 4px;">
+                            <span>Maturity (Current Due Date):</span> <span style="color: #38bdf8; font-size:1.05rem;">${activeEmerLoan.dueDate}</span>
+                        </div>
+                        <div class="ledger-row" style="font-size: 0.85rem; color: var(--warning); margin-top: 4px;">
+                            <span>Late Payment Penalty:</span> <span>1% per day of Total Amount Due</span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="color: #38bdf8; font-size: 0.95rem;">Payment History Ledger Table</h4>
+                        <button onclick="deleteRecord('${activeEmerLoan.id}')" style="background:#ef4444; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem;">Delete Account</button>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Due Date</th>
+                                    <th>Date Payment</th>
+                                    <th>Remaining Principal Balance</th>
+                                    <th>Principal</th>
+                                    <th>Interest</th>
+                                    <th>Penalty</th>
+                                    <th>Total Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>${tableRows}</tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                emerContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 25px;">I-type ang pangalan sa search box sa ibabaw o i-click ang "View List of Borrowers" aron makita ang Debt Payment Tracker Monitor.</p>`;
+            }
+
+            document.getElementById('arawanCount').textContent = aCount;
+            document.getElementById('arawanToday').textContent = '₱' + aToday.toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.getElementById('arawanSavings').textContent = '₱' + aTotalSavings.toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.getElementById('arawanBalance').textContent = '₱' + aBalTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
+
+            document.getElementById('emerCount').textContent = eCount;
+            document.getElementById('emerToday').textContent = '₱' + eToday.toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.getElementById('emerBalance').textContent = '₱' + eBalTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
+        }
+    </script>
+</body>
+</html>
