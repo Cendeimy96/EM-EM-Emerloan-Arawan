@@ -3,35 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EM EM EMERLOAN & ARAWAN - Debt & Savings Tracker (Cloud Sync)</title>
-    <!-- Firebase App (Modular SDK CDN) -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    <title>EM EM EMERLOAN & ARAWAN - Debt & Savings Tracker (Supabase Cloud Sync)</title>
 
-        // IMONG FIREBASE CONFIGURATION (Ilisi kini sa imong Firebase project details)
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
+    <!-- Supabase JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+    <script>
+        // === IMONG TINUOD NGA SUPABASE DETAILS (NA-SET NA) ===
+        const SUPABASE_URL = "https://jmffhlyarehbdzyhqcvf.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable__1OuZHw4Q0ek746t_IvE8w_cN3pEqBH";
 
-        // Make db and functions globally available for the rest of the script
-        window.db = db;
-        window.collection = collection;
-        window.addDoc = addDoc;
-        window.getDocs = getDocs;
-        window.doc = doc;
-        window.updateDoc = updateDoc;
-        window.deleteDoc = deleteDoc;
-        window.onSnapshot = onSnapshot;
+        // Initialize Supabase Client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     </script>
 
     <style>
@@ -249,7 +232,6 @@
 
         th { background: #0f172a; color: var(--text-muted); }
 
-        /* ARAWAN EXACT LEDGER SHEET STYLE */
         .ledger-sheet {
             background: #0f172a;
             border: 2px solid var(--arawan-color);
@@ -297,7 +279,6 @@
         .badge-pass { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
         .badge-sunday { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid #38bdf8; }
 
-        /* MODALS */
         .modal {
             display: none;
             position: fixed;
@@ -367,7 +348,7 @@
 
     <div class="header">
         <h1>EM EM EMERLOAN & ARAWAN</h1>
-        <p>Online Real-Time Collection & Payment Management System</p>
+        <p>Supabase Cloud Real-Time Payment Tracker</p>
     </div>
 
     <!-- MAIN TAB NAVIGATION BUTTONS -->
@@ -489,13 +470,11 @@
                     </button>
                 </div>
                 
-                <!-- SEARCH BOX ONLY -->
                 <div class="form-group">
                     <label>Pangitaa ang Borrower (Live Search):</label>
                     <input type="text" id="aSearch" class="search-box" placeholder="🔍 I-type ang pangalan dire aron mogawas dayon ang ledger..." style="margin-bottom:0;">
                 </div>
 
-                <!-- EXACT ARAWAN MONITOR LEDGER DISPLAY -->
                 <div id="arawanLedgerSheetContainer">
                     <p style="text-align: center; color: var(--text-muted); padding: 25px;">I-type ang pangalan sa ibabaw o i-click ang "View List of Borrowers" aron makita ang Arawan Ledger Monitor.</p>
                 </div>
@@ -594,13 +573,11 @@
                     </button>
                 </div>
                 
-                <!-- SEARCH BOX ONLY -->
                 <div class="form-group">
                     <label>Pangitaa ang Borrower (Live Search):</label>
                     <input type="text" id="eSearch" class="search-box" placeholder="🔍 I-type ang pangalan dire aron mogawas dayon ang monitor..." style="margin-bottom:0;">
                 </div>
 
-                <!-- EXACT MONITOR LEDGER SHEET DISPLAY -->
                 <div id="borrowerLedgerSheetContainer">
                     <p style="text-align: center; color: var(--text-muted); padding: 25px;">I-type ang pangalan sa ibabaw o i-click ang "View List of Borrowers" aron makita ang Debt Payment Tracker Monitor.</p>
                 </div>
@@ -643,9 +620,7 @@
                 <h3 id="modalListTitle" style="color: #38bdf8; font-size: 1.15rem; border:none; margin:0;">List of Borrowers</h3>
                 <button onclick="closeBorrowersModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:1.5rem; cursor:pointer; font-weight:bold;">&times;</button>
             </div>
-            <div class="list-modal-body" id="modalListContainer">
-                <!-- Borrowers items will be generated here dynamically -->
-            </div>
+            <div class="list-modal-body" id="modalListContainer"></div>
             <div style="margin-top: 15px; text-align: right;">
                 <button onclick="closeBorrowersModal()" class="btn btn-secondary" style="width: auto; padding: 6px 16px;">Close</button>
             </div>
@@ -653,10 +628,19 @@
     </div>
 
 
-    <script type="module">
+    <script>
         let records = [];
 
-        // Wait slightly for Firebase to load globally
+        async function fetchRecords() {
+            const { data, error } = await supabase.from('loans').select('*');
+            if (error) {
+                console.error("Error fetching data:", error);
+            } else {
+                records = data || [];
+                render();
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             const todayStr = new Date().toISOString().split('T')[0];
             document.getElementById('aPayDate').value = todayStr;
@@ -664,24 +648,21 @@
             document.getElementById('ePayDate').value = todayStr;
             document.getElementById('eDisburseDate').value = todayStr;
 
-            // Real-time listener from Firestore
-            const unsubscribe = window.onSnapshot(window.collection(window.db, "loans"), (snapshot) => {
-                records = [];
-                snapshot.forEach((docSnap) => {
-                    records.push({ id: docSnap.id, ...docSnap.data() });
-                });
-                render();
-            });
+            fetchRecords();
+
+            supabase.channel('custom-all-channel')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'loans' }, () => {
+                    fetchRecords();
+                })
+                .subscribe();
         });
 
-        // HELPER: Check if Date is Sunday
         function isSunday(dateStr) {
             if(!dateStr) return false;
             const d = new Date(dateStr);
             return d.getDay() === 0;
         }
 
-        // HELPER: Add Days to ISO Date String (YYYY-MM-DD)
         function addDaysToDate(dateStr, daysToAdd) {
             if(!dateStr) return '';
             const d = new Date(dateStr);
@@ -689,7 +670,6 @@
             return d.toISOString().split('T')[0];
         }
 
-        // Auto-update collected daily target when selecting borrower in search (Arawan)
         document.getElementById('aSearchInput').addEventListener('input', function() {
             const val = this.value.trim().toLowerCase();
             const found = records.find(r => r.type === 'ARAWAN' && r.status === 'ACTIVE' && r.name.toLowerCase() === val);
@@ -698,7 +678,6 @@
             }
         });
 
-        // Toggle Payment vs Pass fields UI
         document.getElementById('aEntryType').addEventListener('change', function() {
             const isPass = this.value === 'PASS';
             document.getElementById('payAmountGroup').style.display = isPass ? 'none' : 'block';
@@ -706,7 +685,6 @@
             document.getElementById('btnSubmitEntry').textContent = isPass ? 'Submit PASS Mark' : 'Submit Collection';
         });
 
-        // TAB SWITCHING LOGIC
         const tabArawanBtn = document.getElementById('tabArawanBtn');
         const tabEmerloanBtn = document.getElementById('tabEmerloanBtn');
         const arawanSection = document.getElementById('arawanSection');
@@ -728,12 +706,10 @@
             render();
         });
 
-        // Live Search Listeners
         document.getElementById('aSearch').addEventListener('input', render);
         document.getElementById('eSearch').addEventListener('input', render);
 
-        // BORROWERS MODAL FUNCTIONS
-        window.openBorrowersModal = function(type) {
+        function openBorrowersModal(type) {
             const modal = document.getElementById('borrowersListModal');
             const container = document.getElementById('modalListContainer');
             const title = document.getElementById('modalListTitle');
@@ -769,11 +745,11 @@
             modal.style.display = 'flex';
         }
 
-        window.closeBorrowersModal = function() {
+        function closeBorrowersModal() {
             document.getElementById('borrowersListModal').style.display = 'none';
         }
 
-        window.selectBorrowerFromModal = function(type, name) {
+        function selectBorrowerFromModal(type, name) {
             if (type === 'ARAWAN') {
                 document.getElementById('aSearch').value = name;
             } else {
@@ -783,7 +759,6 @@
             render();
         }
 
-        // Auto-compute Arawan Calculation Logic
         document.getElementById('aAmount').addEventListener('input', updateArawanCalculation);
         document.getElementById('aRate').addEventListener('input', updateArawanCalculation);
         document.getElementById('aDays').addEventListener('input', updateArawanCalculation);
@@ -805,7 +780,6 @@
 
         updateArawanCalculation();
 
-        // Register Arawan
         document.getElementById('arawanRegisterForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const principal = parseFloat(document.getElementById('aAmount').value);
@@ -837,8 +811,10 @@
                 status: 'ACTIVE'
             };
 
-            try {
-                await window.addDoc(window.collection(window.db, "loans"), newLoan);
+            const { error } = await supabase.from('loans').insert([newLoan]);
+            if (error) {
+                alert('Error saving to Supabase: ' + error.message);
+            } else {
                 document.getElementById('aSearch').value = newLoan.name;
                 this.reset();
                 document.getElementById('aAmount').value = 5000;
@@ -848,14 +824,10 @@
                 const todayStr = new Date().toISOString().split('T')[0];
                 document.getElementById('aRegDate').value = todayStr;
                 updateArawanCalculation();
-                alert('Arawan account registered successfully online!');
-            } catch (err) {
-                console.error(err);
-                alert('Error registering loan: ' + err.message);
+                alert('Arawan account registered successfully to Supabase!');
             }
         });
 
-        // Register Emerloan
         document.getElementById('emerRegisterForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const principal = parseFloat(document.getElementById('eAmount').value);
@@ -877,20 +849,18 @@
                 status: 'ACTIVE'
             };
 
-            try {
-                await window.addDoc(window.collection(window.db, "loans"), newLoan);
+            const { error } = await supabase.from('loans').insert([newLoan]);
+            if (error) {
+                alert('Error saving to Supabase: ' + error.message);
+            } else {
                 document.getElementById('eSearch').value = newLoan.name;
                 this.reset();
                 const todayStr = new Date().toISOString().split('T')[0];
                 document.getElementById('eDisburseDate').value = todayStr;
-                alert('Emerloan account registered successfully online!');
-            } catch (err) {
-                console.error(err);
-                alert('Error registering loan: ' + err.message);
+                alert('Emerloan account registered successfully to Supabase!');
             }
         });
 
-        // Pay Arawan / Pass Logic
         document.getElementById('arawanPayForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const searchedName = document.getElementById('aSearchInput').value.trim().toLowerCase();
@@ -905,11 +875,15 @@
             }
 
             const entryIsSunday = isSunday(date);
-            const currentPassCount = item.payments.filter(p => p.isPass && !isSunday(p.date)).length;
+            const currentPassCount = (item.payments || []).filter(p => p.isPass && !isSunday(p.date)).length;
+
+            let updatedPayments = [...(item.payments || [])];
+            let newSavings = item.accumulatedSavings || 0;
+            let newStatus = item.status;
 
             if (entryType === 'PASS') {
                 if (entryIsSunday) {
-                    item.payments.push({
+                    updatedPayments.push({
                         date: date,
                         isPass: true,
                         isSundayPass: true,
@@ -920,10 +894,10 @@
                     });
                 } else {
                     if (currentPassCount >= 5) {
-                        alert('Sobra na sa 5 ka adlaw (Mon-Sat) nga gi-PASS ni nga borrower! Dili na pwede dungagan og PASS.');
+                        alert('Sobra na sa 5 ka adlaw nga gi-PASS! Dili na pwede.');
                         return;
                     }
-                    item.payments.push({
+                    updatedPayments.push({
                         date: date,
                         isPass: true,
                         isSundayPass: false,
@@ -941,9 +915,9 @@
                 const loanPaymentPortion = Math.min(collectedAmt, reqDaily);
                 const savingsPortion = Math.max(0, collectedAmt - reqDaily);
 
-                item.accumulatedSavings = (item.accumulatedSavings || 0) + savingsPortion;
+                newSavings += savingsPortion;
 
-                item.payments.push({
+                updatedPayments.push({
                     date: date,
                     isPass: false,
                     amountCollected: collectedAmt,
@@ -952,30 +926,28 @@
                     penalty: penalty
                 });
 
-                const totalLoanPaid = item.payments.reduce((sum, p) => sum + (p.loanPaymentPortion || 0), 0);
+                const totalLoanPaid = updatedPayments.reduce((sum, p) => sum + (p.loanPaymentPortion || 0), 0);
                 if (totalLoanPaid >= item.totalDebt) {
-                    item.status = 'PAID';
+                    newStatus = 'PAID';
                 }
             }
 
-            try {
-                const docRef = window.doc(window.db, "loans", item.id);
-                await window.updateDoc(docRef, {
-                    payments: item.payments,
-                    accumulatedSavings: item.accumulatedSavings,
-                    status: item.status
-                });
+            const { error } = await supabase.from('loans').update({
+                payments: updatedPayments,
+                accumulatedSavings: newSavings,
+                status: newStatus
+            }).eq('id', item.id);
 
+            if (error) {
+                alert('Error updating payment: ' + error.message);
+            } else {
                 if (entryType !== 'PASS') {
-                    const totalLoanPaid = item.payments.reduce((sum, p) => sum + (p.loanPaymentPortion || 0), 0);
-                    const lastPay = item.payments[item.payments.length - 1];
+                    const totalLoanPaid = updatedPayments.reduce((sum, p) => sum + (p.loanPaymentPortion || 0), 0);
+                    const lastPay = updatedPayments[updatedPayments.length - 1];
                     showReceipt('ARAWAN', item.name, date, lastPay.loanPaymentPortion, 0, lastPay.penalty, Math.max(0, item.totalDebt - totalLoanPaid), '-', lastPay.savingsPortion);
                 } else {
                     alert('Pass recorded successfully!');
                 }
-            } catch (err) {
-                console.error(err);
-                alert('Error updating payment: ' + err.message);
             }
 
             this.reset();
@@ -988,7 +960,6 @@
             document.getElementById('btnSubmitEntry').textContent = 'Submit Entry';
         });
 
-        // Pay Emerloan Dynamic Calculation
         document.getElementById('emerPayForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const searchedName = document.getElementById('eSearchInput').value.trim().toLowerCase();
@@ -1012,16 +983,16 @@
 
             const currentDueDate = item.dueDate;
             let nextDueDate = currentDueDate;
-            const totalPrinPaid = item.payments.reduce((sum, p) => sum + (p.principalPaid || 0), 0) + prinPay;
+            const existingPayments = item.payments || [];
+            const totalPrinPaid = existingPayments.reduce((sum, p) => sum + (p.principalPaid || 0), 0) + prinPay;
 
             if (intPay > 0 || penPay > 0) {
                 if (totalPrinPaid < item.principal) {
                     nextDueDate = addDaysToDate(currentDueDate, 10);
-                    item.dueDate = nextDueDate;
                 }
             }
 
-            item.payments.push({
+            let updatedPayments = [...existingPayments, {
                 dueDateRecord: currentDueDate,
                 nextDueDateRecord: nextDueDate,
                 date: date,
@@ -1029,24 +1000,20 @@
                 interestPaid: intPay,
                 penaltyPaid: penPay,
                 totalPaid: totalPay
-            });
+            }];
 
-            if (totalPrinPaid >= item.principal) {
-                item.status = 'PAID';
-            }
+            let newStatus = totalPrinPaid >= item.principal ? 'PAID' : item.status;
 
-            try {
-                const docRef = window.doc(window.db, "loans", item.id);
-                await window.updateDoc(docRef, {
-                    payments: item.payments,
-                    dueDate: item.dueDate,
-                    status: item.status
-                });
+            const { error } = await supabase.from('loans').update({
+                payments: updatedPayments,
+                dueDate: nextDueDate,
+                status: newStatus
+            }).eq('id', item.id);
 
+            if (error) {
+                alert('Error updating payment: ' + error.message);
+            } else {
                 showReceipt('EMERLOAN', item.name, date, prinPay, intPay, penPay, Math.max(0, item.principal - totalPrinPaid), nextDueDate, 0);
-            } catch (err) {
-                console.error(err);
-                alert('Error updating payment: ' + err.message);
             }
 
             this.reset();
@@ -1057,32 +1024,23 @@
             document.getElementById('ePayPenalty').value = 0;
         });
 
-        window.withdrawSavings = async function(id) {
+        async function withdrawSavings(id) {
             const item = records.find(r => r.id === id);
             if (!item) return;
 
             const currentSav = item.accumulatedSavings || 0;
             if (confirm(`I-withdraw ang Savings nga ₱${currentSav.toFixed(2)} alang kang ${item.name}?`)) {
-                try {
-                    const docRef = window.doc(window.db, "loans", item.id);
-                    await window.updateDoc(docRef, { savingsClaimed: true });
-                    alert('Savings successfully withdrawn!');
-                } catch (err) {
-                    console.error(err);
-                    alert('Error withdrawing savings: ' + err.message);
-                }
+                const { error } = await supabase.from('loans').update({ savingsClaimed: true }).eq('id', id);
+                if (error) alert('Error: ' + error.message);
+                else alert('Savings successfully withdrawn!');
             }
         }
 
-        window.deleteRecord = async function(id) {
+        async function deleteRecord(id) {
             if (confirm('Sigurado ka nga idelete kini nga account?')) {
-                try {
-                    await window.deleteDoc(window.doc(window.db, "loans", id));
-                    alert('Record deleted successfully!');
-                } catch (err) {
-                    console.error(err);
-                    alert('Error deleting record: ' + err.message);
-                }
+                const { error } = await supabase.from('loans').delete().eq('id', id);
+                if (error) alert('Error: ' + error.message);
+                else alert('Record deleted successfully!');
             }
         }
 
@@ -1110,7 +1068,6 @@
 
         function render() {
             const todayStr = new Date().toISOString().split('T')[0];
-            // Arawan Elements
             const arawanDatalist = document.getElementById('arawanBorrowersList');
             const aSearchVal = document.getElementById('aSearch').value.toLowerCase().trim();
             const arawanContainer = document.getElementById('arawanLedgerSheetContainer');
@@ -1119,7 +1076,6 @@
             let aCount = 0, aToday = 0, aBalTotal = 0, aTotalSavings = 0;
             let matchedArawanLoan = null;
 
-            // Emerloan Elements
             const emerloanDatalist = document.getElementById('emerloanBorrowersList');
             const eSearchVal = document.getElementById('eSearch').value.toLowerCase().trim();
             const emerContainer = document.getElementById('borrowerLedgerSheetContainer');
@@ -1168,9 +1124,7 @@
                 }
             });
 
-            // 1. RENDER ARAWAN LEDGER MONITOR
             let activeArawanLoan = matchedArawanLoan;
-
             if (activeArawanLoan) {
                 let passbookRows = '';
                 let collectionRows = '';
@@ -1265,9 +1219,7 @@
                                     <th>SIGNATURE</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                ${passbookRows}
-                            </tbody>
+                            <tbody>${passbookRows}</tbody>
                         </table>
                     </div>
 
@@ -1283,9 +1235,7 @@
                                     <th>Penalty</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                ${collectionRows}
-                            </tbody>
+                            <tbody>${collectionRows}</tbody>
                         </table>
                     </div>
                 `;
@@ -1293,10 +1243,7 @@
                 arawanContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 25px;">I-type ang pangalan sa search box sa ibabaw o i-click ang "View List of Borrowers" aron makita ang Arawan Ledger Monitor.</p>`;
             }
 
-
-            // 2. RENDER EMERLOAN LEDGER MONITOR
             let activeEmerLoan = matchedEmerLoan;
-
             if (activeEmerLoan) {
                 let totalPrinPaid = 0;
                 let tableRows = '';
@@ -1305,7 +1252,6 @@
                     activeEmerLoan.payments.forEach(p => {
                         totalPrinPaid += p.principalPaid;
                         const remBal = Math.max(0, activeEmerLoan.principal - totalPrinPaid);
-                        
                         const recordDueDate = p.dueDateRecord || activeEmerLoan.dueDate;
 
                         tableRows += `
@@ -1367,9 +1313,7 @@
                                     <th>Total Amount</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                ${tableRows}
-                            </tbody>
+                            <tbody>${tableRows}</tbody>
                         </table>
                     </div>
                 `;
@@ -1377,7 +1321,6 @@
                 emerContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 25px;">I-type ang pangalan sa search box sa ibabaw o i-click ang "View List of Borrowers" aron makita ang Debt Payment Tracker Monitor.</p>`;
             }
 
-            // Update Dashboards
             document.getElementById('arawanCount').textContent = aCount;
             document.getElementById('arawanToday').textContent = '₱' + aToday.toLocaleString('en-US', {minimumFractionDigits: 2});
             document.getElementById('arawanSavings').textContent = '₱' + aTotalSavings.toLocaleString('en-US', {minimumFractionDigits: 2});
